@@ -7,7 +7,6 @@ from termcolor import colored
 import subprocess
 import whois
 from terminaltables import AsciiTable
-from textwrap import wrap
 import requests
 
 
@@ -39,6 +38,7 @@ links = sorted(filter(link_filter, links), key=lambda e: [e[0], e[1]])
 links.insert(0, ['Type', 'Link'])
 
 table = AsciiTable(links, 'External Links')
+table.inner_heading_row_border = True
 print(table.table)
 
 print('\n \n ')
@@ -50,8 +50,9 @@ hosts = set([urlparse.urlparse(link[1]).netloc for link in links if link])
 
 dig_data.insert(0, ['Domain', 'Type', 'Resolves To'])
 table = AsciiTable(dig_data, 'Dig')
-table.inner_heading_row_border = False
-max_width = table.column_max_width(0)
+table.inner_heading_row_border = True
+# For this to work right, need to group by domain
+# table.inner_row_border = True
 
 for host in hosts:
     if not host:
@@ -59,6 +60,8 @@ for host in hosts:
     results_for_host = subprocess.check_output(['dig',"+noall","+answer","ANY", host])
     result_list = results_for_host.strip().split('\n')
     for result in result_list:
+        if not result:
+            continue
         result_pieces = result.split()
         table.table_data.append([result_pieces[0], result_pieces[3], result_pieces[4]])
 
@@ -76,9 +79,10 @@ while hosts:
     host, hosts = hosts[0], hosts[1:]
     try:
         result = whois.whois(host)
-        d = colored(result.domain_name or host, 'red')
-        if not isinstance(d, basestring):
-            d = '\n'.join(map(lambda x: colored(x, 'red'), d))
+        domain = result.domain_name or host
+        if not isinstance(domain, basestring):
+            domain = ', '.join(domain)
+        d = colored(domain, 'red')
         e = result.expiration_date
         if not e:
             e = []
@@ -90,9 +94,7 @@ while hosts:
             s = []
         if not isinstance(s, list):
             s = [s]
-        s = '\n'.join([colored(x.split()[0] or 'unknown', 'blue') for x in s])
-        if not isinstance(s, basestring):
-            s = '\n'.join(map(lambda x: colored(x.split()[0], 'blue'), s))
+        s = '\n'.join([colored(x.split()[0] or 'unknown', 'blue') for x in s if x.find('Prohibited') < 0])
 
         whois_data.append([d, e, s])
     except whois.parser.PywhoisError as e:
@@ -104,6 +106,8 @@ while hosts:
         if host not in hosts:
             hosts.append(host)
 table = AsciiTable(whois_data, 'Whois')
+table.inner_heading_row_border = True
+table.inner_row_border = True
 print(table.table)
 print('\n \n ')
 print(colored('-----------WHOIS COMPLETE----------', 'red'))
@@ -115,9 +119,7 @@ print('\n')
 link_data = [['Link', 'Status']]
 long_string = ('Link Status')
 table = AsciiTable(link_data, 'Link Status')
-#table = AsciiTable(link_data, 'Link Status')
-# Calculate newlines.
-max_width = table.column_max_width(1)
+table.inner_heading_row_border = True
 
 for link in links[1:]:
     try:
