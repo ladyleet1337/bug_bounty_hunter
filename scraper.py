@@ -48,7 +48,7 @@ print(colored('-----------Lets send all the domains to dig!----------', 'green')
 dig_data = []
 hosts = set([urlparse.urlparse(link[1]).netloc for link in links if link])
 
-dig_data.insert(0, ['Domain Info'])
+dig_data.insert(0, ['Domain', 'Type', 'Resolves To'])
 table = AsciiTable(dig_data, 'Dig')
 table.inner_heading_row_border = False
 max_width = table.column_max_width(0)
@@ -57,11 +57,10 @@ for host in hosts:
     if not host:
         continue
     results_for_host = subprocess.check_output(['dig',"+noall","+answer","ANY", host])
-    results_for_host
     result_list = results_for_host.strip().split('\n')
     for result in result_list:
-        wrapped_string = '\n'.join(wrap(result.strip(), max_width))
-        table.table_data.append([wrapped_string])
+        result_pieces = result.split()
+        table.table_data.append([result_pieces[0], result_pieces[3], result_pieces[4]])
 
 print(table.table)
 print('\n \n ')
