@@ -1,0 +1,8 @@
+BeautifulSoup==3.2.1
+beautifulsoup4==4.4.1
+bs4==0.0.1
+future==0.15.2
+python-whois==0.6.1
+requests==2.10.0
+termcolor==1.1.0
+terminaltables==3.0.0
