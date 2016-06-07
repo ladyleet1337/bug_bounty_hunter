@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from bs4 import BeautifulSoup
-import urllib
 import urlparse
 import argparse
 from termcolor import colored
@@ -10,7 +9,7 @@ import whois
 from terminaltables import AsciiTable
 from textwrap import wrap
 import requests
-import textwrap
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('url', type=str)
@@ -18,13 +17,20 @@ parser.add_argument('--element', '-e', type=str, action='append')
 args = parser.parse_args()
 
 parsed_url = urlparse.urlparse(args.url)
-r = urllib.urlopen(args.url)
+timeout = 1
+
+try:
+    response = requests.get(args.url, verify=False, timeout=timeout )
+except requests.exceptions.ReadTimeout:
+    print('Could not connect to "%s" within %s seconds' % (args.url, timeout))
+    exit(1)
+
 def link_filter(link):
     link = link[1]
     parsed_link = urlparse.urlparse(link)
     return parsed_link.netloc and parsed_link != parsed_url.netloc
 print(colored('-----------Lets Scrape all External Links.----------', 'green'))
-soup = BeautifulSoup(r, "html.parser")
+soup = BeautifulSoup(response.content, "html.parser")
 links = set()
 links.update([(elem.name, elem.attrs.get('href')) for elem in soup.find_all(args.element or True, href=True)])
 links.update([(elem.name, elem.attrs.get('src')) for elem in soup.find_all(args.element or True, src=True)])
