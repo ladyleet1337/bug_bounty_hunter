@@ -53,8 +53,6 @@ def hunt():
     dig_data.insert(0, ['Domain', 'Type', 'Resolves To'])
     table = AsciiTable(dig_data, 'Dig')
     table.inner_heading_row_border = True
-    # For this to work right, need to group by domain
-    # table.inner_row_border = True
 
     for host in hosts:
         if not host:
@@ -113,10 +111,10 @@ def hunt():
     table.inner_row_border = True
     print(table.table)
     print('\n \n ')
-    print(colored('-----------WHOIS COMPLETE----------', 'red'))
+    print(colored('-------------------WHOIS COMPLETE----------------------', 'red'))
     print('\n')
     print('\n \n ')
-    print(colored('-----------URL Status Below.----------', 'green'))
+    print(colored('-------------------URL Status Below.-------------------', 'green'))
     print('\n')
     # Take all the urls and do a GET request and return the status code.
     link_data = [['Link', 'Status']]
@@ -134,7 +132,7 @@ def hunt():
         except requests.ConnectionError:
             print("failed to connect")
     print(table.table)
-    print(colored('-----------Script Complete----------', 'green'))
+    print(colored('----------------------Script Complete-------------------', 'green'))
 
 
 def main():

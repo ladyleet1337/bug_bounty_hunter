@@ -16,7 +16,7 @@ setup(
     author_email='anpseftis86@gmail.com',
     url='https://github.com/anpseftis/bug_bounty_hunter',
     download_url='https://github.com/anpseftis/bug_bounty_hunter/archive/v{0}.tar.gz'.format(version),
-    description='',
+    description='Bug_Bounty_Hunter(BBH) was created to assist in quickly finding interesting information relating to domains.',
     long_description=open('README.rst').read(),
     keywords=[''],
 
