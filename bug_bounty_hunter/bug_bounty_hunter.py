@@ -11,24 +11,47 @@ import requests
 from requests.packages.urllib3 import exceptions
 
 
+def get_with_timeout(url):
+    timeout = 1
+    response = None
+    try:
+        response = requests.get(url, verify=False, timeout=timeout)
+    except requests.exceptions.ReadTimeout:
+        print('Could not connect to "%s" within %s seconds' % (url, timeout))
+    return response
+
+
 def crawl(url):
     tocrawl = set([url])
     crawled = set([])
+    crawled_list = []
     keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
     linkregex = re.compile('<a\s*href=[\'|"](.*?)[\'"].*?>')
+    domain = urlparse.urlparse(url).netloc
+    print(domain)
 
-    while 1:
+    while tocrawl: 
+        error=0 
         try:
             crawling = tocrawl.pop()
             print crawling
-        except KeyError:
-            raise StopIteration
-        url = urlparse.urlparse(crawling)
-        try:
-            response = urllib2.urlopen(crawling)
-        except:
+        except IOError, error_code: 
+	    error=1 
+	    if error_code[0]=="http error": 
+	        if error_code[1]==401: 
+		    print "Password required" 
+		elif error_code[1]==404: 
+		    print "file not found" 
+		elif error_code[1]==500: 
+		    print "server is down" 
+		else: 
+		    print (error_code) 
+	if error==1:
             continue
-        msg = response.read()
+        response = get_with_timeout(crawling)
+        if not response:
+            continue 
+	msg = response.content
         startPos = msg.find('<title>')
         if startPos != -1:
             endPos = msg.find('</title>', startPos+7)
@@ -42,20 +65,25 @@ def crawl(url):
             print keywordlist
         links = linkregex.findall(msg)
         crawled.add(crawling)
+        crawled_list.append(['', crawling])
+        parsed_url = urlparse.urlparse(crawling)
         for link in (links.pop(0) for _ in xrange(len(links))):
+            print(link)
+            if link.find(domain) < 0:
+                continue
             if link.startswith('/'):
-                link = 'http://' + url[1] + link
+                link = 'http://' + parsed_url[1] + link
             elif link.startswith('#'):
-                link = 'http://' + url[1] + url[2] + link
+                link = 'http://' + parsed_url[1] + url[2] + link
             elif not link.startswith('http'):
-                link = 'http://' + url[1] + '/' + link
+                link = 'http://' + parsed_url[1] + '/' + link
             if link not in crawled:
-                tocrawl.add(link)
-    return crawled
+                tocrawl.add(link)	
+
+    return crawled_list
 
 
 def hunt():
-
     parser = argparse.ArgumentParser()
     parser.add_argument('url', type=str)
     parser.add_argument('--element', '-e', type=str, action='append')
@@ -65,11 +93,8 @@ def hunt():
     requests.packages.urllib3.disable_warnings()
 
     parsed_url = urlparse.urlparse(args.url)
-    timeout = 1
-    try:
-        response = requests.get(args.url, verify=False, timeout=timeout)
-    except requests.exceptions.ReadTimeout:
-        print('Could not connect to "%s" within %s seconds' % (args.url, timeout))
+    response = get_with_timeout(args.url)
+    if not response:
         exit(1)
 
     def link_filter(link):
@@ -80,12 +105,14 @@ def hunt():
     print(colored('-----------Lets Scrape all External Links.----------', 'green'))
     soup = BeautifulSoup(response.content, "html.parser")
     links = set()
+
     def add_links(links, elems, attr):
         for elem in elems:
             link = elem.attrs.get(attr)
             # Exclude source domain
             if link.find(parsed_url.netloc) < 0:
                 links.add((elem.name, link))
+
     add_links(links, soup.find_all(True, href=True), 'href')
     add_links(links, soup.find_all(True, src=True), 'src')
     links = sorted(filter(link_filter, links), key=lambda e: [e[0], e[1]])
@@ -142,7 +169,8 @@ def hunt():
             if not isinstance(e, list):
                 e = [e]
             e = '\n'.join(
-                [colored(i, 'green') if isinstance(i, basestring) else colored(i.strftime('%d-%m-%y'), 'green') for i in e])
+                [colored(i, 'green') if isinstance(i, basestring) else colored(i.strftime('%d-%m-%y'), 'green') for i in
+                 e])
             s = result.status
             if not s:
                 s = []
@@ -201,4 +229,3 @@ def hunt():
 def main():
     hunt()
     return 0
-
