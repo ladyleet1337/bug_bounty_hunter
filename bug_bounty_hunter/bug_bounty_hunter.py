@@ -15,10 +15,12 @@ def hunt():
     parser.add_argument('--element', '-e', type=str, action='append')
     args = parser.parse_args()
 
+    # Allow access to sites that have http and https
+    requests.packages.urllib3.disable_warnings()
+
     parsed_url = urlparse.urlparse(args.url)
     timeout = 1
     try:
-        response = requests.packages.urllib3.disable_warnings()
         response = requests.get(args.url, verify=False, timeout=timeout)
     except requests.exceptions.ReadTimeout:
         print('Could not connect to "%s" within %s seconds' % (args.url, timeout))
@@ -32,8 +34,14 @@ def hunt():
     print(colored('-----------Lets Scrape all External Links.----------', 'green'))
     soup = BeautifulSoup(response.content, "html.parser")
     links = set()
-    links.update([(elem.name, elem.attrs.get('href')) for elem in soup.find_all(args.element or True, href=True)])
-    links.update([(elem.name, elem.attrs.get('src')) for elem in soup.find_all(args.element or True, src=True)])
+    def add_links(links, elems, attr):
+        for elem in elems:
+            link = elem.attrs.get(attr)
+            # Exclude source domain
+            if link.find(parsed_url.netloc) < 0:
+                links.add((elem.name, link))
+    add_links(links, soup.find_all(True, href=True), 'href')
+    add_links(links, soup.find_all(True, src=True), 'src')
     links = sorted(filter(link_filter, links), key=lambda e: [e[0], e[1]])
 
     links.insert(0, ['Type', 'Link'])
@@ -136,3 +144,4 @@ def hunt():
 def main():
     hunt()
     return 0
+
