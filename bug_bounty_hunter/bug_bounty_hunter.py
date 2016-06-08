@@ -1,4 +1,6 @@
 from bs4 import BeautifulSoup
+import re
+import urllib2
 import urlparse
 import argparse
 from termcolor import colored
@@ -7,6 +9,50 @@ import whois
 from terminaltables import AsciiTable
 import requests
 from requests.packages.urllib3 import exceptions
+
+
+def crawl(url):
+    tocrawl = set([url])
+    crawled = set([])
+    keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
+    linkregex = re.compile('<a\s*href=[\'|"](.*?)[\'"].*?>')
+
+    while 1:
+        try:
+            crawling = tocrawl.pop()
+            print crawling
+        except KeyError:
+            raise StopIteration
+        url = urlparse.urlparse(crawling)
+        try:
+            response = urllib2.urlopen(crawling)
+        except:
+            continue
+        msg = response.read()
+        startPos = msg.find('<title>')
+        if startPos != -1:
+            endPos = msg.find('</title>', startPos+7)
+            if endPos != -1:
+                title = msg[startPos+7:endPos]
+                print title
+        keywordlist = keywordregex.findall(msg)
+        if len(keywordlist) > 0:
+            keywordlist = keywordlist[0]
+            keywordlist = keywordlist.split(", ")
+            print keywordlist
+        links = linkregex.findall(msg)
+        crawled.add(crawling)
+        for link in (links.pop(0) for _ in xrange(len(links))):
+            if link.startswith('/'):
+                link = 'http://' + url[1] + link
+            elif link.startswith('#'):
+                link = 'http://' + url[1] + url[2] + link
+            elif not link.startswith('http'):
+                link = 'http://' + url[1] + '/' + link
+            if link not in crawled:
+                tocrawl.add(link)
+    return crawled
+
 
 def hunt():
 
@@ -123,21 +169,32 @@ def hunt():
     print('\n \n ')
     print(colored('-------------------URL Status Below.-------------------', 'green'))
     print('\n')
-    # Take all the urls and do a GET request and return the status code.
-    link_data = [['Link', 'Status']]
-    long_string = ('Link Status')
-    table = AsciiTable(link_data, 'Link Status')
-    table.inner_heading_row_border = True
 
-    for link in links[1:]:
-        try:
-            link = urlparse.urlparse(link[1])
-            link = link._replace(scheme='http').geturl()
-            resp = requests.get(link)
-            link_data.append([link, resp.status_code])
-        except requests.ConnectionError:
-            print("failed to connect")
-    print(table.table)
+    def check_links(links):
+        # Take all the urls and do a GET request and return the status code.
+        link_data = [['Link', 'Status']]
+        long_string = ('Link Status')
+        table = AsciiTable(link_data, 'Link Status')
+        table.inner_heading_row_border = True
+
+        for link in links:
+            try:
+                link = urlparse.urlparse(link[1])
+                link = link._replace(scheme='http').geturl()
+                resp = requests.get(link, timeout=1)
+                link_data.append([link, resp.status_code])
+            except requests.ConnectionError:
+                print("failed to connect")
+            except requests.ReadTimeout:
+                print("timed out")
+        print(table.table)
+
+    check_links(links[1:])
+    print(colored('----------------------Checked Links-------------------', 'green'))
+
+    crawled_links = crawl(args.url)
+    check_links(crawled_links)
+
     print(colored('----------------------Script Complete-------------------', 'green'))
 
 
