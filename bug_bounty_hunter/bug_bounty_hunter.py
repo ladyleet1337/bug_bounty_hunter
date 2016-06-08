@@ -6,9 +6,10 @@ import subprocess
 import whois
 from terminaltables import AsciiTable
 import requests
-
+from requests.packages.urllib3 import exceptions
 
 def hunt():
+
     parser = argparse.ArgumentParser()
     parser.add_argument('url', type=str)
     parser.add_argument('--element', '-e', type=str, action='append')
@@ -16,19 +17,17 @@ def hunt():
 
     parsed_url = urlparse.urlparse(args.url)
     timeout = 1
-
     try:
+        response = requests.packages.urllib3.disable_warnings()
         response = requests.get(args.url, verify=False, timeout=timeout)
     except requests.exceptions.ReadTimeout:
         print('Could not connect to "%s" within %s seconds' % (args.url, timeout))
         exit(1)
 
-
     def link_filter(link):
         link = link[1]
         parsed_link = urlparse.urlparse(link)
         return parsed_link.netloc and parsed_link != parsed_url.netloc
-
 
     print(colored('-----------Lets Scrape all External Links.----------', 'green'))
     soup = BeautifulSoup(response.content, "html.parser")
@@ -128,7 +127,6 @@ def hunt():
             link = link._replace(scheme='http').geturl()
             resp = requests.get(link)
             link_data.append([link, resp.status_code])
-            # prints the int of the status code. Find more at httpstatusrappers.com :)
         except requests.ConnectionError:
             print("failed to connect")
     print(table.table)
